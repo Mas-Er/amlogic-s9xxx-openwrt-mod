@@ -6,6 +6,8 @@
 
 name: Build OpenWrt with immortalwrt
 
+permissions: read-all|write-all
+
 on:
   repository_dispatch:
   workflow_dispatch:
