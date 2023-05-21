@@ -6,7 +6,6 @@
 
 name: Build OpenWrt with immortalwrt
 
-permissions: read-all|write-all
 
 on:
   repository_dispatch:
@@ -168,6 +167,9 @@ env:
   DIY_P1_SH: config-openwrt/immortalwrt-21.02/diy-part1.sh
   DIY_P2_SH: config-openwrt/immortalwrt-21.02/diy-part2.sh
   TZ: America/New_York
+  
+  
+permissions: read-all|write-all
 
 jobs:
   build:
