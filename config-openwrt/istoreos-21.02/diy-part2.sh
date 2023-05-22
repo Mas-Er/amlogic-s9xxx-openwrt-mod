@@ -24,7 +24,7 @@ sed -i '27 i\uci uci set luci.main.mediaurlbase="/luci-static-argon/"\nuci commi
 
 # Set banner
 # rm -rf ./package/emortal/default-settings/files/openwrt_banner
-# svn export https://github.com/karnadii/KarnadiWrt/trunk/amlogic-s9xxx/common-files/rootfs/etc/banner package/emortal/default-settings/files/openwrt_banner
+svn export https://github.com/karnadii/KarnadiWrt/trunk/amlogic-s9xxx/common-files/rootfs/etc/banner package/emortal/default-settings/files/openwrt_banner
 
 # Add the default password for the 'root' user（Change the empty password to 'password'）
 sed -i 's/root::0:0:99999:7:::/root:$1$V4UetPzk$CYXluq4wUazHjmCDBCqXF.:0:0:99999:7:::/g' package/base-files/files/etc/shadow
@@ -33,7 +33,7 @@ sed -i 's/root::0:0:99999:7:::/root:$1$V4UetPzk$CYXluq4wUazHjmCDBCqXF.:0:0:99999
 sed -i "s/ImmortalWrt/KangrisWrt/g" package/kernel/mac80211/files/lib/wifi/mac80211.sh
 
 # Set timezone
-sed -i -e "s/CST-8/WIB-7/g" -e "s/Shanghai/Jakarta/g" package/emortal/default-settings/files/99-default-settings-chinese
+sed -i -e "s/CST-8/WIB-7/g" -e "s/Asia/Jakarta/g" package/emortal/default-settings/files/99-default-settings-chinese
 
 # Set hostname
 sed -i "s/ImmortalWrt/KangrisWrt/g" package/base-files/files/bin/config_generate
