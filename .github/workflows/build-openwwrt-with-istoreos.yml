@@ -4,7 +4,7 @@
 # Source code repository: https://github.com/immortalwrt/immortalwrt / Branch: openwrt-21.02
 #============================================================================================
 
-name: Build OpenWrt with immortalwrt
+name: Build OpenWrt with Istoreos
 
 on:
   repository_dispatch:
@@ -163,13 +163,13 @@ env:
 
   REPO_BRANCH: istoreos-21.02.2
 
-  FEEDS_CONF: router-config/istoreos-21.02/feeds.conf.default
+  FEEDS_CONF: config-openwrt/istoreos-21.02/feeds.conf.default
 
-  CONFIG_FILE: router-config/istoreos-21.02/config
+  CONFIG_FILE: config-openwrt/istoreos-21.02/config
 
-  DIY_P1_SH: router-config/istoreos-21.02/diy-part1.sh
+  DIY_P1_SH: config-openwrt/istoreos-21.02/diy-part1.sh
 
-  DIY_P2_SH: router-config/istoreos-21.02/diy-part2.sh
+  DIY_P2_SH: config-openwrt/istoreos-21.02/diy-part2.sh
 
   TZ: Asia/Jakarta
 
