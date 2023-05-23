@@ -128,6 +128,50 @@ custom_packages() {
     wget ${amlogic_i18n_down} -q -P packages
     [[ "${?}" -eq "0" ]] || error_msg "[ ${amlogic_i18n} ] download failed!"
     echo -e "${INFO} The [ ${amlogic_i18n} ] is downloaded successfully."
+    
+     # Download luci-app-openclash
+    OC_Version=$(curl -sL https://github.com/vernesong/OpenClash/tags |
+        grep 'v0.45.' |
+        sed -e 's/\"//g' -e 's/ //g' -e 's/rel=.*//g' -e 's#<ahref=##g' -e 's/>//g' -e 's#/vernesong/OpenClash/releases/tag/##g' -e 's/v//g' -e 's#<aclass=Link--mutedhref=##g' -e 's/>//g' |
+        awk 'FNR == 4')
+    OC_Luci="https://github.com/vernesong/OpenClash/releases/download/v${OC_Version}/luci-app-openclash_${OC_Version}_all.ipk"
+    wget -q -P packages/ ${OC_Luci}
+    [[ "${?}" -eq "0" ]] && echo -e "${INFO} The [ ${OC_Luci} ] is downloaded successfully."
+    # Add Requirements for OpenClash
+    echo "src luci-app-openclash file:packages" >> repositories.conf
+    cat >>packages.txt << EOF
+
+coreutils
+coreutils-nohup
+iptables-mod-tproxy
+iptables-mod-extra
+libcap
+libcap-bin
+ruby
+ruby-yaml
+ip6tables-mod-nat
+luci-app-openclash
+EOF
+    # Add Requirements for TinyFileManager
+    cat >>packages.txt <<EOL
+
+php7
+php7-cli
+php7-cgi
+php7-mod-session
+php7-mod-ctype
+php7-mod-fileinfo
+php7-mod-mbstring
+php7-mod-json
+php7-mod-iconv
+php7-mod-zip
+iconv
+EOL
+    # Add tano theme
+    Tano_Repo="https://github.com/jakues/luci-theme-tano/releases/download/0.1/luci-theme-tano_0.1_all.ipk"
+    wget -q -P packages/ ${Tano_Repo}
+    [[ "${?}" -eq "0" ]] && echo -e "${INFO} The [ ${Tano_Repo} ] is downloaded successfully."
+    echo "src luci-theme-tano file:packages" >> repositories.conf
 
     # Download other luci-app-xxx
     # ......
@@ -155,19 +199,117 @@ custom_config() {
 # The [ files ] directory should be placed in the Image Builder root directory where you issue the make command.
 custom_files() {
     cd ${imagebuilder_path}
-    echo -e "${STEPS} Start adding custom files..."
 
-    if [[ -d "${custom_files_path}" ]]; then
+    [[ -d "${custom_files_path}" ]] && {
+        echo -e "${STEPS} Start adding custom files..."
         # Copy custom files
         [[ -d "files" ]] || mkdir -p files
         cp -rf ${custom_files_path}/* files
+        #
+        # custom files here
+        #
+        # Change Permission neofetch and other
+        chmod +x files/usr/bin/neofetch files/usr/bin/hilink files/etc/zshinit || error_msg "Please check the path file"
+        sed -i -e "s/4.3.2.1/${addr}/g" files/etc/config/network
+        # Clone OhMyZsh
+        OMZ_REPO="https://github.com/ohmyzsh/ohmyzsh.git"
+        git clone -q ${OMZ_REPO} files/root/.oh-my-zsh
+        # Add Additional Custom Repo's
+        # Disable Signature Verification
+        sed -i 's/option check_signature/# option check_signature/g' repositories.conf
+        # Add Repo 21.02.3 packages
+        echo "src/gz old_packages_repos https://downloads.openwrt.org/releases/21.02.3/packages/${ARCH}/packages/" >> repositories.conf
+        # Add Repo 21.02.3 base
+        echo "src/gz old_base_repos https://downloads.openwrt.org/releases/21.02.3/packages/${ARCH}/base/" >> repositories.conf
+        # Add lrdrdn Generic repo
+        echo "src/gz custom_generic https://raw.githubusercontent.com/lrdrdn/my-opkg-repo/main/generic" >> repositories.conf
+        # Add lrdrdn Architecture repo
+        echo "src/gz custom_arch https://raw.githubusercontent.com/lrdrdn/my-opkg-repo/main/${ARCH}" >> repositories.conf
+        #
+        # Install Core Clash
+        OC_Core_Dir="files/etc/openclash/core"
+        OC_Core_Repo="https://raw.githubusercontent.com/vernesong/OpenClash/master/core-lateset"
+        OC_Premium_Version=$(echo $(curl -sL https://github.com/vernesong/OpenClash/raw/master/core_version | awk '{print $1}') | awk '{print $2}')
+        mkdir -p ${OC_Core_Dir}
+        # Core Meta
+        # example https://github.com/vernesong/OpenClash/raw/master/core-lateset/meta/clash-linux-armv7.tar.gz
+        wget -q -P ${OC_Core_Dir} ${OC_Core_Repo}/meta/clash-linux-${SHORT_ARCH}.tar.gz || error_msg "Failed to download OpenClash Core"
+        tar -xf ${OC_Core_Dir}/clash-linux-${SHORT_ARCH}.tar.gz -C ${OC_Core_Dir} || error_msg "Failed to install OpenClash Core"
+        mv files/etc/openclash/core/clash files/etc/openclash/core/clash_meta || error_msg "Failed to rename clash_meta"
+        rm ${OC_Core_Dir}/clash-linux-${SHORT_ARCH}.tar.gz
+        # Core Premium
+        wget -q -P ${OC_Core_Dir} ${OC_Core_Repo}/premium/clash-linux-${SHORT_ARCH}-${OC_Premium_Version}.gz || error_msg "Failed to download OpenClash Core"
+        gzip -dk ${OC_Core_Dir}/clash-linux-${SHORT_ARCH}-${OC_Premium_Version}.gz || error_msg "Failed to install OpenClash Core"
+        mv ${OC_Core_Dir}/clash-linux-${SHORT_ARCH}-${OC_Premium_Version} files/etc/openclash/core/clash_tun || error_msg "Failed to rename clash_tun"
+        rm ${OC_Core_Dir}/clash-linux-${SHORT_ARCH}-${OC_Premium_Version}.gz
+        # Core Dev
+        wget -q -P ${OC_Core_Dir} ${OC_Core_Repo}/dev/clash-linux-${SHORT_ARCH}.tar.gz || error_msg "Failed to download OpenClash Core"
+        tar -xf ${OC_Core_Dir}/clash-linux-${SHORT_ARCH}.tar.gz -C ${OC_Core_Dir} || error_msg "Failed to install OpenClash Core"
+        rm ${OC_Core_Dir}/clash-linux-${SHORT_ARCH}.tar.gz
+        #
+        # Install TinyFileManager
+        TFM_Repo="https://github.com/jakues/tinyfilemanager/raw/master/tinyfilemanager.php"
+        TFM_Conf="https://github.com/jakues/tinyfilemanager/raw/master/config-sample.php"
+        TFM_Dir="files/www"
+        wget -q -P ${TFM_Dir} ${TFM_Repo} || error_msg "Cant download tiny file manager"
+        wget -q -O ${TFM_Dir}/config.php ${TFM_Conf} || error_msg "Cant download tiny file manager config"
+        sed -i -e 's/$use_auth = true;/$use_auth = false;/g' \
+            -e 's#Etc/UTC#Asia/Jakarta#g' \
+            -e 's/?>//g' \
+            -e 's#$root_path*#// $root_path*#g' ${TFM_Dir}/config.php
+        cat >>${TFM_Dir}/config.php <<EOI
+
+root_path = '../'
+
+?>
+EOI
+        sed -i -e 's#root_path#$root_path#g' ${TFM_Dir}/config.php
+        TFM_Lua_Dir="files/usr/lib/lua/luci/controller"
+        TFM_Html_Dir="files/usr/lib/lua/luci/view"
+        mkdir -p ${TFM_Lua_Dir}
+        cat >${TFM_Lua_Dir}/tinyfm.lua <<EOF
+module("luci.controller.tinyfm", package.seeall)
+function index()
+entry({"admin","system","tinyfm"}, template("tinyfm"), _("File Explorer"), 55).leaf=true
+end
+EOF
+        mkdir -p ${TFM_Html_Dir}
+        cat >${TFM_Html_Dir}/tinyfm.htm <<EOL
+<%+header%>
+<div class="cbi-map">
+<br>
+<iframe id="tinyfm" style="width: 100%; min-height: 650px; border: none; border-radius: 2px;"></iframe>
+</div>
+<script type="text/javascript">
+document.getElementById("tinyfm").src = "http://" + window.location.hostname + "/tinyfilemanager.php";
+</script>
+<%+footer%>
+EOL
+
+        # Set tano theme on branch 21.+
+        if [[ ${rebuild_branch} = 21.* || ${rebuild_branch} = 22.* ]] ; then
+            cat > files/etc/uci-defaults/30_luci-theme-tano << EOL
+#!/bin/sh
+
+	uci get luci.themes.Tano >/dev/null 2>&1 || \
+	uci batch <<-EOF
+		set luci.themes.Tano=/luci-static/tano
+		set luci.main.mediaurlbase=/luci-static/tano
+		commit luci
+	EOF
+
+exit 0
+EOL
+        fi
+
+        # Set brcm-userland for old branch
+        
 
         sync && sleep 3
         echo -e "${INFO} [ files ] directory status: $(ls files -l 2>/dev/null)"
-    else
-        echo -e "${INFO} No customized files were added."
-    fi
+    }
 }
+
 
 # Rebuild OpenWrt firmware
 rebuild_firmware() {
@@ -198,6 +340,14 @@ rebuild_firmware() {
         luci-proto-openconnect luci-proto-ppp luci-proto-qmi luci-proto-relay  \
         \
         luci-app-amlogic luci-i18n-amlogic-zh-cn \
+        \
+        bash chat comgt comgt-ncm curl -dnsmasq dnsmasq-full git git-http httping htop iptables ipset ip-full jq \
+        \
+        kmod-sound-core kmod-tun kmod-udptunnel6 kmod-udptunnel4 kmod-usb-core kmod-usb-dwc2 kmod-usb-ehci kmod-usb-gadget-eth kmod-usb-hid \
+        kmod-usb-net kmod-usb-net-asix-ax88179 kmod-usb-net-cdc-ether kmod-usb-net-cdc-ncm kmod-usb-net-huawei-cdc-ncm kmod-usb-net-smsc95xx \
+        kmod-usb-ohci kmod-usb-serial kmod-usb-serial-option kmod-usb-serial-wwan kmod-usb-storage kmod-usb-uhci kmod-usb-wdm kmod-usb2 \
+        luci-app-ttyd luci-theme-bootstrap luci-theme-material \
+        nano screen tar unzip usb-modeswitch usbutils whereis wget zsh zoneinfo-asia \
         \
         ${config_list} \
         "
